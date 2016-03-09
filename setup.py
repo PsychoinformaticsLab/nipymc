@@ -18,12 +18,12 @@ if 'setuptools' in sys.modules:
     )
 
 setup(
-    name="pymcwrap",
+    name="NiPyMC",
     version=__version__,
     description="...",
     author='Tal Yarkoni',
     author_email='tyarkoni@gmail.com',
-    packages=["pymcwrap"],
+    packages=["nipymc"],
     install_requires=['six'],
     tests_require=tests_require,
     license='MIT',
