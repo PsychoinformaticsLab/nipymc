@@ -1,0 +1,6 @@
+numpy
+pandas
+scipy
+scikit-learn
+six
+-e git://github.com/pymc-devs/pymc3.git#egg=pymc3

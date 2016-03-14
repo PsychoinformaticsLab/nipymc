@@ -6,8 +6,10 @@ __version__ = '0.0.1'
 if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
     import setuptools
 
-tests_require = ['dill', 'pygraphviz']
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
+tests_require = []
 extra_setuptools_args = {}
 if 'setuptools' in sys.modules:
     tests_require.append('nose')
@@ -24,7 +26,6 @@ setup(
     author='Tal Yarkoni',
     author_email='tyarkoni@gmail.com',
     packages=["nipymc"],
-    install_requires=['six'],
     tests_require=tests_require,
     license='MIT',
     **extra_setuptools_args
