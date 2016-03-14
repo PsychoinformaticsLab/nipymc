@@ -377,7 +377,23 @@ class BayesianModel(object):
         return y_data
 
     def run(self, samples=1000, find_map=True, verbose=False, step='nuts',
-            **kwargs):
+            burn=0.5, **kwargs):
+        ''' Run the model.
+        Args:
+            samples (int): Number of MCMC samples to generate
+            find_map (bool): passed to find_map argument of pm.sample()
+            verbose (bool): if True, prints additional informatino
+            step (str or PyMC3 Sampler): either an instantiated PyMC3 sampler,
+                or the name of the sampler to use (either 'nuts' or
+                'metropolis').
+            burn (int or float): Number or proportion of samples to treat as
+                burn-in; passed onto the BayesianModelResults instance returned
+                by this method.
+            kwargs (dict): optional keyword arguments passed on to the sampler.
+
+        Returns: an instance of class BayesianModelResults.
+
+        '''
         with self.model:
             njobs = kwargs.pop('njobs', 1)
             if isinstance(step, string_types):
@@ -392,7 +408,7 @@ class BayesianModel(object):
             trace = pm.sample(
                 samples, start=start, step=step, progressbar=verbose, njobs=njobs)
             self.last_trace = trace  # for convenience
-            return trace
+            return BayesianModelResults(trace)
 
     def add_intercept(self, level='subject'):
         pass
@@ -409,15 +425,14 @@ class BayesianModel(object):
         plt.show()
 
 
-class Results(object):
+class BayesianModelResults(object):
 
     def __init__(self, trace, burn=0.5):
         self.trace = trace
         if isinstance(burn, float):
             n = trace.varnames[0]
-            self.burn = round(len(trace[n]) * burn)
-        else:
-            self.burn = burn
+            burn = round(len(trace[n]) * burn)
+        self.burn = burn
 
     def summarize(self, terms=None, contrasts=None):
         if terms is None:
