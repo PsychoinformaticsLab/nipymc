@@ -24,7 +24,7 @@ class BayesianModel(object):
         if conv_kws is None:
             # conv_kws = {'hz': 1./self.dataset.TR}
             conv_kws = {'tr': self.dataset.TR}
-        self.convolution = get_convolution(convolution, conv_kws)
+        self.convolution = get_convolution(convolution, **conv_kws)
         self._index_events()
         self.reset()
 
