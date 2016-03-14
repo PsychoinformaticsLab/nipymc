@@ -16,7 +16,7 @@ class Dataset(object):
         self.design = design
         self.activation = activation
         self.TR = TR
-        self.n_vols = self.activation['vol'].max()
+        self.n_vols = self.activation['vol'].nunique()
         self.n_runs = self.activation['run'].nunique()
 
 
