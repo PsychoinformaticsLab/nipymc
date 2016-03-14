@@ -3,9 +3,7 @@ from scipy.misc import factorial
 import scipy as sp
 
 
-def get_convolution(name, kwargs):
-    if kwargs is None:
-        kwargs = {}
+def get_convolution(name, **kwargs):
     return globals()[name](**kwargs)
 
 
