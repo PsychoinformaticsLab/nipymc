@@ -3,15 +3,10 @@ import numpy as np
 from .convolutions import get_convolution
 from sklearn.preprocessing import scale as standardize
 from scipy.signal import detrend as lin_detrend
-import matplotlib.pyplot as plt
-import seaborn as sns
 import pymc3 as pm
 from six import string_types
 from collections import OrderedDict
 from sklearn.linear_model import LinearRegression
-from theano import shared
-from theano import tensor as T
-from statsmodels.tsa.arima_model import ARMA
 
 
 class BayesianModel(object):
@@ -328,6 +323,8 @@ class BayesianModel(object):
         return dm
 
     def _setup_y(self, y_data, ar):
+        from theano import shared
+        from theano import tensor as T
         ''' Sets up y to be a theano shared variable. '''
         if 'y' not in self.shared_params:
             self.shared_params['y'] = shared(y_data)
@@ -417,6 +414,8 @@ class BayesianModel(object):
         pass
 
     def plot_design_matrix(self, dm, panel=False):
+        import matplotlib.pyplot as plt
+        import seaborn as sns
         n_cols = dm.shape[1]
         plt.figure(figsize=(0.005*len(dm), 0.5*n_cols))
         colors = sns.husl_palette(n_cols)

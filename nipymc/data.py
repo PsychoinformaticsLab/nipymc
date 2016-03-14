@@ -7,7 +7,6 @@ from os.path import join, basename, exists
 import numpy as np
 import pandas as pd
 import re
-from .model import BayesianModel
 
 
 class Dataset(object):

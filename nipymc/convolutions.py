@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.misc import factorial
-import scipy as sp
+from scipy import stats
 
 
 def get_convolution(name, **kwargs):
@@ -40,8 +40,8 @@ def spm_hrf(tr, p=[6, 16, 1, 1, 6, 0, 32]):
     tr = float(tr)
     dt = tr/fMRI_T
     u = np.arange(p[6]/dt + 1) - p[5]/dt
-    hrf = sp.stats.gamma.pdf(u, p[0]/p[2], scale=1.0/(dt/p[2])) - \
-        sp.stats.gamma.pdf(u, p[1]/p[3], scale=1.0/(dt/p[3]))/p[4]
+    hrf = stats.gamma.pdf(u, p[0]/p[2], scale=1.0/(dt/p[2])) - \
+        stats.gamma.pdf(u, p[1]/p[3], scale=1.0/(dt/p[3]))/p[4]
     good_pts = np.array(range(np.int(p[6]/tr)))*fMRI_T
     hrf = hrf[list(good_pts)]
     hrf = hrf/np.sum(hrf)
