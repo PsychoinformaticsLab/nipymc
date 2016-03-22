@@ -265,15 +265,29 @@ class EmotionTaskFactory(HCPDatasetFactory):
         return data.query('Procedure == "TrialsPROC"')
 
     def _postprocess(self):
-        stim = self.design_data['top_stim'].str.split('.').str.get(0)
+        top_stim = self.design_data['top_stim'].str.split('.').str.get(0)
         cols = self.design_data[['top_stim', 'left_stim', 'right_stim']]
         self.design_data['stimulus'] = cols.apply(lambda x: '_'.join(x), axis=1)
         self.design_data['condition'] = 'shape'
-        face = stim.apply(lambda x: '_' in x)
+        face = top_stim.apply(lambda x: '_' in x)
         self.design_data.ix[face, 'condition'] = 'face'
         self.design_data['duration'] = 3
+        # NOTE: reps defined as number of times the entire stimulus configuration is
+        # repeated, NOT the numbers of times individual faces or shapes are repeated
         reps = self.design_data.groupby(['subject', 'stimulus']).cumcount()
         self.design_data['repetition'] = reps
         self.design_data['emotion'] = 0
-        self.design_data['emotion'][stim.str.get(1) == 'A'] = 1
-        self.design_data['emotion'][stim.str.get(1) == 'F'] = -1
+        self.design_data['emotion'][top_stim.str.get(1) == 'A'] = 1
+        self.design_data['emotion'][top_stim.str.get(1) == 'F'] = -1
+        # replace left-, top-, and right-stim columns with unique/individual stimulus IDs
+        stim_key = [['MF3_top', 'MF3_left'],['MF3_right'],['MF2_top', 'MF2_right'],
+            ['MF2_left', 'MF1_top', 'MF1_left'],['MF1_right'],
+            ['MA3_top', 'MA3_left', 'MA1_left'],['MA3_right'],['MA2_top', 'MA2_right'],
+            ['MA2_left'],['MA1_top', 'MA1_right'],['FF3_top', 'FF3_right'],['FF3_left'],
+            ['FF2_top', 'FF2_left'],['FF2_right', 'FF1_top', 'FF1_right'],['FF1_left'],
+            ['FA3_top', 'FA3_left'],['FA3_right'],['FA2_top', 'FA2_right'],
+            ['FA2_left', 'FA1_top', 'FA1_left'],['FA1_right']]
+        stim_key = [[x + '.jpg' for x in sublist] for sublist in stim_key]
+        stim_key = dict(zip(sum(stim_key, []),
+                            sum([['face' + str(i)]*len(x) for i, x in enumerate(stim_key)], [])))
+        self.design_data = self.design_data.replace(stim_key)
