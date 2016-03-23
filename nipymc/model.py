@@ -56,7 +56,9 @@ class BayesianModel(object):
 
         events = self.events.copy()
 
-        cache_key = hash((variable, categorical))
+        # if variable is a list, convert it to tuple before hashing
+        cache_key = hash((tuple(variable) if isinstance(variable, list) else variable,
+                         categorical))
 
         if cache_key not in self.cache:
 
@@ -78,28 +80,50 @@ class BayesianModel(object):
                 for i in range(n_grps):
                     dm[(n_vols*i):(n_vols*i+n_vols), i] = val
             else:
-                if variable not in events.columns:
-                    raise ValueError("No variable '%s' found in the input "
-                                     "dataset!" % variable)
+                # handle lists of categorical variables, for when multiple columns contain
+                # levels of the same factor. intended use case is when multiple stimuli are
+                # presented simultaneously, as in the HCP Emotion task
+                if isinstance(variable, list):
+                    if not categorical:
+                        raise ValueError("Adding a list of terms is only supported for "
+                                         "categorical variables (e.g., random factors)")
 
-                # Initialize design matrix
-                n_cols = events[variable].nunique() if categorical else 1
-                dm = np.zeros((n_rows, n_cols))
+                    # Initialize design matrix
+                    n_cols = events[variable].stack().nunique()
+                    dm = np.zeros((n_rows, n_cols))
+                    idx = events['onset_row']
 
-                idx = events['onset_row']
-
-                # For categorical variables, map unique values onto numerical indices,
-                # and return data as a DataFrame where each column is a (named) level
-                # of the variable
-                if categorical:
-                    levels = events[variable].unique()
+                    # map unique values onto numerical indices, and return data as a
+                    # DataFrame where each column is a (named) level of the variable
+                    levels = events[variable].stack().unique()
                     mapping = OrderedDict(zip(levels, list(range(n_cols))))
                     events[variable] = events[variable].replace(mapping)
-                    dm[idx, events[variable]] = 1.
+                    for var in variable:
+                        dm[idx, events[var]] = 1.
 
-                # For continuous variables, just index into array
-                else:
-                    dm[idx, 0] = events[variable]
+                else: # if variable is NOT a list
+                    if variable not in events.columns:
+                        raise ValueError("No variable '%s' found in the input "
+                                         "dataset!" % variable)
+
+                    # Initialize design matrix
+                    n_cols = events[variable].nunique() if categorical else 1
+                    dm = np.zeros((n_rows, n_cols))
+
+                    idx = events['onset_row']
+
+                    # For categorical variables, map unique values onto numerical indices,
+                    # and return data as a DataFrame where each column is a (named) level
+                    # of the variable
+                    if categorical:
+                        levels = events[variable].unique()
+                        mapping = OrderedDict(zip(levels, list(range(n_cols))))
+                        events[variable] = events[variable].replace(mapping)
+                        dm[idx, events[variable]] = 1.
+
+                    # For continuous variables, just index into array
+                    else:
+                        dm[idx, 0] = events[variable]
 
                 # Convolve with boxcar to account for event duration
                 duration_tr = np.round(
@@ -126,9 +150,16 @@ class BayesianModel(object):
         belong (1) or not belong (0) to categories in columns. Only applies to
         categorical variables.
         '''
-        targ_levels = self.events[target_var].unique()
+        if isinstance(target_var, list):
+            targ_levels = self.events[target_var].stack().unique()
+        else:
+            targ_levels = self.events[target_var].unique()
         grp_levels = self.events[group_var].unique()
-        ct = pd.crosstab(self.events[target_var], self.events[group_var])
+        if isinstance(target_var, list):
+            ct = pd.crosstab(self.events[target_var].stack().values,
+                             self.events[group_var].repeat(len(target_var)).values)
+        else:
+            ct = pd.crosstab(self.events[target_var], self.events[group_var])
         ct[ct > 1] = 1  # binarize
         return ct.loc[targ_levels, grp_levels]  # make sure order is correct
 
@@ -242,14 +273,20 @@ class BayesianModel(object):
         dm = self._get_variable_data(variable, categorical, trend=trend)
 
         if label is None:
-            label = variable
+            if isinstance(variable, list):
+                raise ValueError("When adding a list of terms, a label must be supplied.")
+            else:
+                label = variable
 
         n_cols = dm.shape[1]
 
-        # Handle random effects with nesting/crossing
+        # Handle random effects with nesting/crossing. Basically this splits the design
+        # matrix into a separate matrix for each level of split_by, stacked into 3D array
         if split_by is not None:
             split_dm = self._get_variable_data(split_by, True)
             dm = np.einsum('ab,ac->abc', dm, split_dm)
+
+        self.test = dm
 
         # Orthogonalization
         # TODO: generalize this to handle any combination of settings; right
@@ -259,6 +296,7 @@ class BayesianModel(object):
             dm = self._orthogonalize(dm, orthogonalize)
 
         # Scaling and HRF: apply over last dimension
+        # if there is no split_by, add a dummy 3rd dimension so code below works in general
         if dm.ndim == 2:
             dm = dm[..., None]
 
@@ -283,6 +321,7 @@ class BayesianModel(object):
             if plot:
                 self.plot_design_matrix(dm[..., i])
 
+        # remove the dummy 3rd dimension if it was added prior to scaling/convolution
         if dm.shape[-1] == 1:
             dm = dm.reshape(dm.shape[:2])
 
@@ -302,10 +341,14 @@ class BayesianModel(object):
                                          shape=n_cols, **kwargs)
                     self.mu += pm.dot(dm, u)
                 else:
+                    # id_map is essentially a crosstab except each cell is either 0 or 1
                     id_map = self._get_membership_graph(variable, split_by)
                     for i in range(id_map.shape[1]):
+                        # select just the factor levels that appear with the
+                        # current level of split_by
                         group_items = id_map.iloc[:, i].astype(bool).values
                         selected = dm[:, group_items, i]
+                        # add the level effects to the model
                         name = '%s_%s' % (label, id_map.columns[i])
                         sigma = self._build_dist('sigma_' + name, **sigma_kws)
                         if yoke_random_mean:
