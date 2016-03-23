@@ -286,8 +286,6 @@ class BayesianModel(object):
             split_dm = self._get_variable_data(split_by, True)
             dm = np.einsum('ab,ac->abc', dm, split_dm)
 
-        self.test = dm
-
         # Orthogonalization
         # TODO: generalize this to handle any combination of settings; right
         # now it will only work properly when both the target variable and the
@@ -479,14 +477,19 @@ class BayesianModel(object):
 
 class BayesianModelResults(object):
 
-    def __init__(self, trace, burn=0.5):
+    def __init__(self, trace):
         self.trace = trace
+
+    def summarize(self, terms=None, contrasts=None, burn=0.5):
+        # TODO: add a 'thin' parameter with argument k (default = 1) so that
+        # every kth sample is saved, the rest are discarded before summarizing
+
+        # handle burn whether it is given as a proportion or a number of samples
         if isinstance(burn, float):
-            n = trace.varnames[0]
+            n = self.trace.varnames[0]
             burn = round(len(trace[n]) * burn)
         self.burn = burn
 
-    def summarize(self, terms=None, contrasts=None):
         if terms is None:
             terms = self.trace.varnames
         summary = {'terms': {}, 'contrasts': {}}
