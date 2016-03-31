@@ -7,6 +7,7 @@ import pymc3 as pm
 from six import string_types
 from collections import OrderedDict
 from sklearn.linear_model import LinearRegression
+from .utils import listify
 
 
 class BayesianModel(object):
@@ -80,54 +81,39 @@ class BayesianModel(object):
                 for i in range(n_grps):
                     dm[(n_vols*i):(n_vols*i+n_vols), i] = val
             else:
-                # handle lists of categorical variables, for when multiple columns contain
-                # levels of the same factor. intended use case is when multiple stimuli are
-                # presented simultaneously, as in the HCP Emotion task
-                if isinstance(variable, list):
-                    if not categorical:
-                        raise ValueError("Adding a list of terms is only supported for "
-                                         "categorical variables (e.g., random factors)")
+                if categorical:
+                    for var in listify(variable):
+                        if var not in events.columns:
+                            raise ValueError("No variable '%s' found in the "
+                                             "input dataset!" % variable)
 
                     # Initialize design matrix
-                    n_cols = events[variable].stack().nunique()
+                    variable_cols = events[variable]
+                    if isinstance(variable, (list, tuple)):
+                        variable_cols = variable_cols.stack()
+                    n_cols = variable_cols.nunique() if categorical else 1
                     dm = np.zeros((n_rows, n_cols))
                     idx = events['onset_row']
 
                     # map unique values onto numerical indices, and return data as a
                     # DataFrame where each column is a (named) level of the variable
-                    levels = events[variable].stack().unique()
+                    levels = variable_cols.unique()
                     mapping = OrderedDict(zip(levels, list(range(n_cols))))
                     events[variable] = events[variable].replace(mapping)
-                    for var in variable:
+
+                    for var in listify(variable):
                         dm[idx, events[var]] = 1.
 
-                else: # if variable is NOT a list
-                    if variable not in events.columns:
-                        raise ValueError("No variable '%s' found in the input "
-                                         "dataset!" % variable)
-
-                    # Initialize design matrix
-                    n_cols = events[variable].nunique() if categorical else 1
-                    dm = np.zeros((n_rows, n_cols))
-
-                    idx = events['onset_row']
-
-                    # For categorical variables, map unique values onto numerical indices,
-                    # and return data as a DataFrame where each column is a (named) level
-                    # of the variable
-                    if categorical:
-                        levels = events[variable].unique()
-                        mapping = OrderedDict(zip(levels, list(range(n_cols))))
-                        events[variable] = events[variable].replace(mapping)
-                        dm[idx, events[variable]] = 1.
-
+                else:
+                    if isinstance(variable, (tuple, list)):
+                       raise ValueError("Adding a list of terms is only "
+                                        "supported for categorical variables "
+                                        "(e.g., random factors)")
                     # For continuous variables, just index into array
-                    else:
-                        dm[idx, 0] = events[variable]
+                    dm[idx, 0] = events[variable]
 
                 # Convolve with boxcar to account for event duration
-                duration_tr = np.round(
-                    events['duration'] / self.dataset.TR).astype(int)
+                duration_tr = (events['duration'] / self.dataset.TR).round().astype(int)
                 # TODO: allow variable duration across events. Can do this trivially
                 # by looping over events; can non-uniform convolution be
                 # vectorized?
@@ -422,7 +408,6 @@ class BayesianModel(object):
             y_data = y_grps[y].transform(lin_detrend).values
 
         self._setup_y(y_data, ar)
-        return y_data
 
     def run(self, samples=1000, find_map=True, verbose=False, step='nuts',
             burn=0.5, **kwargs):
