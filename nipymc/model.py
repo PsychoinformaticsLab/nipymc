@@ -228,6 +228,11 @@ class BayesianModel(object):
                 specifying the parameters of the Distribution to use as the
                 sigma for a random variable. Defaults to HalfCauchy with
                 beta=10. Ignored unless random=True.
+            withhold (bool): if True, the PyMC distribution(s) will be created
+                but not added to the prediction equation. This is useful when,
+                e.g., yoking the mean of one distribution to the estimated
+                value of another distribution, without including the same
+                quantity twice.
             plot (bool): if True, plots the resulting design matrix component.
             kwargs: optional keyword arguments passed onto the selected PyMC3
                 Distribution.
@@ -301,7 +306,6 @@ class BayesianModel(object):
                     for i in range(id_map.shape[1]):
                         group_items = id_map.iloc[:, i].astype(bool).values
                         selected = dm[:, group_items, i]
-                        print(selected.shape)
                         name = '%s_%s' % (label, id_map.columns[i])
                         sigma = self._build_dist('sigma_' + name, **sigma_kws)
                         if yoke_random_mean:
@@ -321,6 +325,12 @@ class BayesianModel(object):
                     self.mu += pm.dot(dm, b)
 
         return dm
+
+    def add_deterministic(self, label, expr):
+        ''' Add a deterministic variable by evaling the passed expression. '''
+        from theano import tensor as T
+        with self.model:
+            self._build_dist(label, 'Deterministic', var=eval(expr))
 
     def _setup_y(self, y_data, ar):
         from theano import shared
@@ -478,3 +488,10 @@ class BayesianModelResults(object):
             mu_sd = mu.std()
 
         return(mu_m, mu_sd,  mu_m/mu_sd)
+
+    def save(self, filename):
+        pass
+
+    @classmethod
+    def load(cls):
+        pass
