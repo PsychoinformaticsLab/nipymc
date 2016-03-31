@@ -36,6 +36,7 @@ class BayesianModel(object):
         self.mu = 0.
         self.cache = {}
         self.shared_params = {}
+        self.level_map = {}
 
     def _index_events(self):
         ''' Calculate and store the row position of all events relative to the
@@ -51,7 +52,7 @@ class BayesianModel(object):
         events['onset_row'] = onset_tr + shift
         self.events = events
 
-    def _get_variable_data(self, variable, categorical, trend=None):
+    def _get_variable_data(self, variable, categorical, label=None, trend=None):
         ''' Extract (and cache) design matrix for variable/categorical combo.
         '''
 
@@ -99,6 +100,8 @@ class BayesianModel(object):
                     # DataFrame where each column is a (named) level of the variable
                     levels = variable_cols.unique()
                     mapping = OrderedDict(zip(levels, list(range(n_cols))))
+                    if label is not None:
+                        self.level_map[label] = mapping
                     events[variable] = events[variable].replace(mapping)
 
                     for var in listify(variable):
@@ -255,15 +258,12 @@ class BayesianModel(object):
                 Distribution.
         '''
 
-        # Load design matrix for requested variable
-        dm = self._get_variable_data(variable, categorical, trend=trend)
-
         if label is None:
-            if isinstance(variable, list):
-                raise ValueError("When adding a list of terms, a label must be supplied.")
-            else:
-                label = variable
+            label = '_'.join(listify(variable))
 
+        # Load design matrix for requested variable
+        dm = self._get_variable_data(variable, categorical, label=label,
+                                     trend=trend)
         n_cols = dm.shape[1]
 
         # Handle random effects with nesting/crossing. Basically this splits the design
