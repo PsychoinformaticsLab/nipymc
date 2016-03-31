@@ -330,8 +330,8 @@ class BayesianModel(object):
                     for i in range(id_map.shape[1]):
                         # select just the factor levels that appear with the
                         # current level of split_by
-                        group_items = id_map.iloc[:, i].astype(bool).values
-                        selected = dm[:, group_items, i]
+                        group_items = id_map.iloc[:, i].astype(bool)
+                        selected = dm[:, group_items.values, i]
                         # add the level effects to the model
                         name = '%s_%s' % (label, id_map.columns[i])
                         sigma = self._build_dist('sigma_' + name, **sigma_kws)
@@ -339,9 +339,15 @@ class BayesianModel(object):
                             mu = self.dists['b_' + split_by][i]
                         else:
                             mu = 0.
-                        u = self._build_dist('u_' + name, dist, mu=mu, sd=sigma,
-                                             shape=selected.shape[1], **kwargs)
+                        name, size = 'u_' + name, selected.shape[1]
+                        u = self._build_dist(name, dist, mu=mu, sd=sigma,
+                                             shape=size, **kwargs)
                         self.mu += pm.dot(selected, u)
+
+                        # Update the level map
+                        levels = group_items[group_items].index.tolist()
+                        self.level_map[name] = OrderedDict(zip(levels, list(range(size))))
+
             # Fixed effects
             else:
                 b = self._build_dist('b_' + label, dist, shape=dm.shape[-1],
