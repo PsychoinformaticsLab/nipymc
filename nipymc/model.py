@@ -224,9 +224,12 @@ class BayesianModel(object):
                 hyperparameters for the stimulus variances (one per category).
             yoke_random_mean (bool):
             estimate_random_mean (bool): If False (default), set mean of random
-                effect distribution to 0. If True, estimate a mean parameter
-                (in which case the corresponding fixed effect should be omitted,
-                for identifiability reasons).
+                effect distribution to 0. If True, estimate mean parameters for 
+                each level of split_by (in which case the corresponding fixed
+                effect parameter should be omitted, for identifiability reasons).
+                If split_by=None, this is equivalent to estimating a fixed
+                intercept term. Note that models parameterized in this way are
+                often less numerically stable than the default parameterization.
             dist (str, Distribution): the PyMC3 distribution to use for the
                 prior. Can be either a string (must be the name of a class in
                 pymc3.distributions), or an uninitialized Distribution object.
@@ -325,7 +328,11 @@ class BayesianModel(object):
 
                 if split_by is None:
                     sigma = self._build_dist('sigma_' + label, **sigma_kws)
-                    u = self._build_dist('u_' + label, dist, mu=0., sd=sigma,
+                    if estimate_random_mean:
+                        mu = self._build_dist('b_' + label, dist)
+                    else:
+                        mu = 0.
+                    u = self._build_dist('u_' + label, dist, mu=mu, sd=sigma,
                                          shape=n_cols, **kwargs)
                     self.mu += pm.dot(dm, u)
                 else:
