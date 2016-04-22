@@ -201,14 +201,14 @@ class BayesianModel(object):
         return self.dists[label]
 
     def add_term(self, variable, label=None, categorical=False, random=False,
-                 split_by=None, yoke_random_mean=False, dist='Normal',
-                 scale=None, trend=None, orthogonalize=None, convolution=None,
-                 conv_kws=None, sigma_kws=None, withhold=False, plot=False,
-                 **kwargs):
+                 split_by=None, yoke_random_mean=False, estimate_random_mean=False,
+                 dist='Normal', scale=None, trend=None, orthogonalize=None,
+                 convolution=None, conv_kws=None, sigma_kws=None, withhold=False,
+                 plot=False, **kwargs):
         '''
         Args:
             variable (str): name of the variable in the Dataset that contains
-                the predictor data for the term
+                the predictor data for the term, or a list of variable names.
             label (str): short name/label of the term; will be used as the
                 name passed to PyMC. If None, the variable name is used.
             categorical (bool): if False, treat the input data as continuous;
@@ -222,7 +222,14 @@ class BayesianModel(object):
                 'stimulus' and split_by = 'category', the model will include
                 one parameter for each individual stimulus, plus C additional
                 hyperparameters for the stimulus variances (one per category).
-            yoke_random_mean (bool): 
+            yoke_random_mean (bool):
+            estimate_random_mean (bool): If False (default), set mean of random
+                effect distribution to 0. If True, estimate mean parameters for 
+                each level of split_by (in which case the corresponding fixed
+                effect parameter should be omitted, for identifiability reasons).
+                If split_by=None, this is equivalent to estimating a fixed
+                intercept term. Note that models parameterized in this way are
+                often less numerically stable than the default parameterization.
             dist (str, Distribution): the PyMC3 distribution to use for the
                 prior. Can be either a string (must be the name of a class in
                 pymc3.distributions), or an uninitialized Distribution object.
@@ -321,7 +328,11 @@ class BayesianModel(object):
 
                 if split_by is None:
                     sigma = self._build_dist('sigma_' + label, **sigma_kws)
-                    u = self._build_dist('u_' + label, dist, mu=0., sd=sigma,
+                    if estimate_random_mean:
+                        mu = self._build_dist('b_' + label, dist)
+                    else:
+                        mu = 0.
+                    u = self._build_dist('u_' + label, dist, mu=mu, sd=sigma,
                                          shape=n_cols, **kwargs)
                     self.mu += pm.dot(dm, u)
                 else:
@@ -337,6 +348,8 @@ class BayesianModel(object):
                         sigma = self._build_dist('sigma_' + name, **sigma_kws)
                         if yoke_random_mean:
                             mu = self.dists['b_' + split_by][i]
+                        elif estimate_random_mean:
+                            mu = self._build_dist('b_' + name, dist)
                         else:
                             mu = 0.
                         name, size = 'u_' + name, selected.shape[1]
