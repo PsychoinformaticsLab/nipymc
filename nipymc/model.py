@@ -245,6 +245,9 @@ class BayesianModel(object):
                 condition.
             convolution (str): the name of the convolution function to apply
                 to the input data; must be a valid function in convolutions.py.
+                If None, the default convolution function set at class
+                initialization is used. If 'none' is passed, no convolution
+                at all is applied.
             conv_kws (dict): optional dictionary of additional keyword
                 arguments to pass onto the selected convolution function.
             sigma_kws (dict): optional dictionary of keyword arguments
@@ -293,7 +296,7 @@ class BayesianModel(object):
                 dm[..., i] = standardize(dm[..., i])
 
             # Convolve with HRF
-            if variable not in ['subject', 'run', 'intercept']:
+            if variable not in ['subject', 'run', 'intercept'] and convolution is not 'none':
                 if convolution is None:
                     convolution = self.convolution
                 elif not hasattr(convolution, 'shape'):
