@@ -130,7 +130,10 @@ class BayesianModel(object):
 
         dm = self.cache[cache_key]
 
-        return dm
+        # NOTE: we return a copy in order to avoid in-place changes to the
+        # cached design matrix (e.g., we don't want the HRF convolution to
+        # overwrite what's in the cache).
+        return dm.copy()
 
     def _get_membership_graph(self, target_var, group_var):
         ''' Return a T x G binary matrix, where T and G are the number of
@@ -356,8 +359,6 @@ class BayesianModel(object):
                     dm = np.squeeze(dm)
                 if not withhold:
                     self.mu += pm.dot(dm, b)
-
-        return dm
 
     def add_deterministic(self, label, expr):
         ''' Add a deterministic variable by evaling the passed expression. '''
