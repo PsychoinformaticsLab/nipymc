@@ -479,7 +479,7 @@ class BayesianModelResults(object):
         # handle burn whether it is given as a proportion or a number of samples
         if isinstance(burn, float):
             n = self.trace.varnames[0]
-            burn = round(len(trace[n]) * burn)
+            burn = round(len(self.trace[n]) * burn)
         self.burn = burn
 
         if terms is None:
