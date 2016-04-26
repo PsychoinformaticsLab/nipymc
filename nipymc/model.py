@@ -82,6 +82,7 @@ class BayesianModel(object):
                 for i in range(n_grps):
                     dm[(n_vols*i):(n_vols*i+n_vols), i] = val
             else:
+                idx = events['onset_row']
                 if categorical:
                     for var in listify(variable):
                         if var not in events.columns:
@@ -94,7 +95,6 @@ class BayesianModel(object):
                         variable_cols = variable_cols.stack()
                     n_cols = variable_cols.nunique() if categorical else 1
                     dm = np.zeros((n_rows, n_cols))
-                    idx = events['onset_row']
 
                     # map unique values onto numerical indices, and return data as a
                     # DataFrame where each column is a (named) level of the variable
@@ -113,6 +113,7 @@ class BayesianModel(object):
                                         "supported for categorical variables "
                                         "(e.g., random factors)")
                     # For continuous variables, just index into array
+                    dm = np.zeros((n_rows, 1))
                     dm[idx, 0] = events[variable]
 
                 # Convolve with boxcar to account for event duration
