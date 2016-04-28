@@ -383,26 +383,45 @@ class BayesianModel(object):
         with self.model:
             self._build_dist(label, 'Deterministic', var=eval(expr))
 
-    def _setup_y(self, y_data, ar):
+    def _setup_y(self, y_data, ar, by_run):
         from theano import shared
         from theano import tensor as T
         ''' Sets up y to be a theano shared variable. '''
         if 'y' not in self.shared_params:
             self.shared_params['y'] = shared(y_data)
+
             with self.model:
-                sigma = pm.HalfCauchy('sigma_y_obs', beta=10)
+
+                n_vols = self.dataset.n_vols
+                n_runs = int(len(y_data) / n_vols)
+
                 for i in range(1, ar+1):
-                    smoothing_param = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1)
-                    _dummy = shared(np.zeros((i,)))
+
+                    _pad = shared(np.zeros((i,)))
                     _trunc = self.shared_params['y'][:-i]
-                    _ar = T.concatenate((_dummy, _trunc)) * smoothing_param
+                    y_shifted = T.concatenate((_pad, _trunc))
+                    weights = np.r_[np.zeros(i), np.ones(n_vols-i)]
+
+                    # Model an AR term for each run or use just one for all runs
+                    if by_run:
+                        smoother = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1, shape=n_runs)
+                        weights = np.outer(weights, np.eye(n_runs))
+                        weights = np.reshape(weights, (n_vols*n_runs, n_runs), order='F')
+                        _ar = pm.dot(weights, smoother) * y_shifted
+                    else:
+                        smoother = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1)
+                        weights = np.tile(weights, n_runs)
+                        _ar = shared(weights) * y_shifted * smoother
+
                     self.mu += _ar
+
+                sigma = pm.HalfCauchy('sigma_y_obs', beta=10)
                 y_obs = pm.Normal('Y_obs', mu=self.mu, sd=sigma, 
                                   observed=self.shared_params['y'])
         else:
             self.shared_params['y'].set_value(y_data)
 
-    def set_y(self, y, detrend=True, scale=None, ar=0):
+    def set_y(self, y, detrend=True, scale=None, ar=0, by_run=False):
         ''' Set the outcome variable.
         Args:
             name (str, int): the name (if str) or index (if int) of the
@@ -413,6 +432,11 @@ class BayesianModel(object):
                 independently.
             ar (int): the order of autoregressive coefficients to include.
                 If 0, no AR term will be added.
+            by_run (bool): whether to include a separate set of AR terms for
+                each scanning run (True), or use the same set of terms for all
+                runs (False; default). The former is the technically correct
+                approach, but is computationally expensive, and in practice,
+                usually has a negligible impact on results.
         '''
 
         self.y = y
@@ -431,7 +455,7 @@ class BayesianModel(object):
             y_grps = y_grps.groupby(['subject', 'run'])
             y_data = y_grps[y].transform(lin_detrend).values
 
-        self._setup_y(y_data, ar)
+        self._setup_y(y_data, ar, by_run)
 
     def run(self, samples=1000, find_map=True, verbose=False, step='nuts',
             burn=0.5, **kwargs):
