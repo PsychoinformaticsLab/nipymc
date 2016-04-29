@@ -477,6 +477,7 @@ class BayesianModel(object):
         '''
         with self.model:
             njobs = kwargs.pop('njobs', 1)
+            chain = kwargs.pop('chain', 0)
             if isinstance(step, string_types):
                 step = {
                     'nuts': pm.NUTS,
@@ -487,7 +488,7 @@ class BayesianModel(object):
                                pm.find_MAP() if find_map else None)
             self.start = start
             trace = pm.sample(
-                samples, start=start, step=step, progressbar=verbose, njobs=njobs)
+                samples, start=start, step=step, progressbar=verbose, njobs=njobs, chain=chain)
             self.last_trace = trace  # for convenience
             return BayesianModelResults(trace)
 
