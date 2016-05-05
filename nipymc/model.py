@@ -26,7 +26,7 @@ class BayesianModel(object):
             # conv_kws = {'hz': 1./self.dataset.TR}
             conv_kws = {'tr': self.dataset.TR}
         self.convolution = get_convolution(convolution, **conv_kws)
-        self._index_events()
+        self.events = self.dataset.design.copy().reset_index()
         self.reset()
 
     def reset(self):
@@ -38,25 +38,9 @@ class BayesianModel(object):
         self.shared_params = {}
         self.level_map = {}
 
-    def _index_events(self):
-        ''' Calculate and store the row position of all events relative to the
-        concatenated activation data so that they align correctly.'''
-        # TODO: rounding to nearest TR is probably fine, but if we want to be
-        # careful, we should eventually interpolate properly.
-        n_vols, n_runs = self.dataset.n_vols, self.dataset.n_runs
-        events = self.dataset.design
-        onset_tr = np.floor(events['onset'] / self.dataset.TR).astype(int)
-        subjects = self.dataset.activation['subject'].unique()
-        subject_map = dict(zip(subjects, list(range(len(subjects)))))
-        shift = events['subject'].replace(subject_map) * n_vols * n_runs
-        events['onset_row'] = onset_tr + shift
-        self.events = events
-
     def _get_variable_data(self, variable, categorical, label=None, trend=None):
         ''' Extract (and cache) design matrix for variable/categorical combo.
         '''
-
-        events = self.events.copy()
 
         # if variable is a list, convert it to tuple before hashing
         cache_key = hash((tuple(variable) if isinstance(variable, list) else variable,
@@ -82,50 +66,53 @@ class BayesianModel(object):
                 for i in range(n_grps):
                     dm[(n_vols*i):(n_vols*i+n_vols), i] = val
             else:
-                idx = events['onset_row']
-                if categorical:
-                    for var in listify(variable):
-                        if var not in events.columns:
-                            raise ValueError("No variable '%s' found in the "
-                                             "input dataset!" % variable)
+                run_dms = []
+                events = self.events.copy()
+                sr = 100  # Sampling rate, in Hz
+                events['run_onset'] = (events['run_onset'] * sr).round()
+                events['duration'] = (events['duration'] * sr).round()
+                tr = self.dataset.TR
+                scale = np.ceil(tr * sr)
+                n_rows = self.dataset.n_vols * scale
 
-                    # Initialize design matrix
+                if categorical:
                     variable_cols = events[variable]
                     if isinstance(variable, (list, tuple)):
                         variable_cols = variable_cols.stack()
-                    n_cols = variable_cols.nunique() if categorical else 1
-                    dm = np.zeros((n_rows, n_cols))
+                    n_cols = variable_cols.nunique()
 
-                    # map unique values onto numerical indices, and return data as a
-                    # DataFrame where each column is a (named) level of the variable
+                    # map unique values onto numerical indices, and return
+                    # data as a DataFrame where each column is a (named) level
+                    # of the variable
                     levels = variable_cols.unique()
                     mapping = OrderedDict(zip(levels, list(range(n_cols))))
                     if label is not None:
                         self.level_map[label] = mapping
                     events[variable] = events[variable].replace(mapping)
 
-                    for var in listify(variable):
-                        dm[idx, events[var]] = 1.
-
                 else:
-                    if isinstance(variable, (tuple, list)):
-                       raise ValueError("Adding a list of terms is only "
-                                        "supported for categorical variables "
-                                        "(e.g., random factors)")
-                    # For continuous variables, just index into array
-                    dm = np.zeros((n_rows, 1))
-                    dm[idx, 0] = events[variable]
+                    n_cols = 1
 
-                # Convolve with boxcar to account for event duration
-                duration_tr = (events['duration'] / self.dataset.TR).round().astype(int)
-                # TODO: allow variable duration across events. Can do this trivially
-                # by looping over events; can non-uniform convolution be
-                # vectorized?
-                if len(np.unique(duration_tr)) > 1:
-                    raise ValueError("At the moment, all events must have identical "
-                                     "duration.")
-                filt = np.ones(duration_tr.iloc[0])
-                dm = self._convolve(dm, filt)
+                for (sub_, run_), g in events.groupby(['subject', 'run']):
+                    dm = np.zeros((n_rows, n_cols))
+                    for i, row in g.iterrows():
+                        start = int(row['run_onset'])
+                        end = int(start + row['duration'])
+
+                        if categorical:
+                            for var in listify(variable):
+                                dm[start:end, row[variable]] = 1
+                        else:
+                            if isinstance(variable, (tuple, list)):
+                                raise ValueError("Adding a list of terms is only "
+                                        "supported for categorical variables "
+                                        "(e.g., random factors).")
+                            dm[start:end, 0] = row[variable]
+
+                    dm = dm.reshape(-1, scale, n_cols).mean(axis=1)
+                    run_dms.append(dm[:self.dataset.n_vols])
+
+                dm = np.concatenate(run_dms)
 
             self.cache[cache_key] = dm
 
@@ -143,12 +130,12 @@ class BayesianModel(object):
         belong (1) or not belong (0) to categories in columns. Only applies to
         categorical variables.
         '''
-        if isinstance(target_var, list):
+        if isinstance(target_var, (list, tuple)):
             targ_levels = self.events[target_var].stack().unique()
         else:
             targ_levels = self.events[target_var].unique()
         grp_levels = self.events[group_var].unique()
-        if isinstance(target_var, list):
+        if isinstance(target_var, (list, tuple)):
             ct = pd.crosstab(self.events[target_var].stack().values,
                              self.events[group_var].repeat(len(target_var)).values)
         else:
@@ -377,6 +364,8 @@ class BayesianModel(object):
                 if not withhold:
                     self.mu += pm.dot(dm, b)
 
+        # return dm
+
     def add_deterministic(self, label, expr):
         ''' Add a deterministic variable by evaling the passed expression. '''
         from theano import tensor as T
@@ -457,16 +446,17 @@ class BayesianModel(object):
 
         self._setup_y(y_data, ar, by_run)
 
-    def run(self, samples=1000, find_map=True, verbose=False, step='nuts',
-            burn=0.5, **kwargs):
+    def run(self, samples=1000, find_map=True, verbose=True, step='nuts',
+            start=None, burn=0.5, **kwargs):
         ''' Run the model.
         Args:
             samples (int): Number of MCMC samples to generate
             find_map (bool): passed to find_map argument of pm.sample()
-            verbose (bool): if True, prints additional informatino
+            verbose (bool): if True, prints additional information
             step (str or PyMC3 Sampler): either an instantiated PyMC3 sampler,
                 or the name of the sampler to use (either 'nuts' or
                 'metropolis').
+            start: Optional starting point to pass onto sampler.
             burn (int or float): Number or proportion of samples to treat as
                 burn-in; passed onto the BayesianModelResults instance returned
                 by this method.
@@ -477,6 +467,7 @@ class BayesianModel(object):
         '''
         with self.model:
             njobs = kwargs.pop('njobs', 1)
+            start = kwargs.pop('start', pm.find_MAP() if find_map else None)
             chain = kwargs.pop('chain', 0)
             if isinstance(step, string_types):
                 step = {
@@ -484,8 +475,6 @@ class BayesianModel(object):
                     'metropolis': pm.Metropolis
                 }[step.lower()](**kwargs)
 
-            start = kwargs.get('start',
-                               pm.find_MAP() if find_map else None)
             self.start = start
             trace = pm.sample(
                 samples, start=start, step=step, progressbar=verbose, njobs=njobs, chain=chain)
