@@ -80,10 +80,8 @@ class HCPDatasetFactory(object):
             design['run_onset'] -= window
 
         # Drop all runs/subjects who have scanning runs with a non-standard
-        # design--i.e., where some stimuli other than the 96 normal ones were
-        # presented. This is necessary in order to obtain reliable stimulus-
-        # level estimates, otherwise the model goes to shit when adding
-        # stimulus as a random effect.
+        # design--i.e., where some stimuli other than the modal ones were
+        # presented.
         if top_stimuli is not None:
             stim_counts = design['stimulus'].value_counts()
             valid_stims = set(list(stim_counts[:top_stimuli].index))
@@ -104,14 +102,14 @@ class HCPDatasetFactory(object):
             lambda x: x['run'].nunique() == len(runs))
 
         # Drop subjects with unequal number of TRs in any run
-        sub_vols = design.groupby('subject')['run'].count()
+        sub_vols = ts.groupby('subject')['run'].count()
         # Assume modal value is correct; drop the rest. TODO: do some extra
         # validation and issue warning or exception if there are multiple
         # frequent values.
         if sub_vols.nunique() > 1:
-            mode = sub_vols.value_counts()[0]
+            mode = sub_vols.value_counts().index[0]
             bad_subs = sub_vols[sub_vols != mode].index.tolist()
-            design = design.query('subject not in @bad_subs')
+            ts = ts.query('subject not in @bad_subs')
 
         # Fail if any onsets are outside the bounds of activation data
         if (design['onset']/tr > len(ts)).any():
@@ -248,6 +246,23 @@ class SocialTaskFactory(HCPDatasetFactory):
 
     def _preprocess(self, data):
         return data.query('Procedure == "SOCIALrunPROC"')
+
+    def _postprocess(self):
+        self.design_data['duration'] = self.design_data['movie_duration']/1000
+
+
+class LanguageTaskFactory(HCPDatasetFactory):
+
+    task = 'LANGUAGE'
+
+    def _preprocess(self, data):
+        tasks = ['StoryTrialPROC', 'PresentMath']
+        data = data[data['Procedure[Trial]'].isin(tasks)].reset_index()
+        data['stimulus'] = data['StoryFile']
+        nan_inds = data['stimulus'].isnull()
+        data.ix[nan_inds, 'stimulus'] = data['MathFile'][nan_inds]
+        data['stimulus'] = data['stimulus'].str.split('\\').str.get(-1)
+        return data
 
     def _postprocess(self):
         pass
