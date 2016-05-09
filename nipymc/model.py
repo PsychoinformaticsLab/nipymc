@@ -488,10 +488,11 @@ class BayesianModel(object):
         pass
 
     def plot_design_matrix(self, dm, variable, split_by=None, panel=False):
+        print(self.level_map.keys())
         import matplotlib.pyplot as plt
         import seaborn as sns
         n_cols = min(dm.shape[1], 10)
-        n_axes = dm.shape[-1]
+        n_axes = dm.shape[2]
         n_rows = self.dataset.n_vols * 3 * self.dataset.n_runs
         fig, axes = plt.subplots(n_axes, 1, figsize=(20, 2 * n_axes))
         if n_axes == 1:
@@ -503,9 +504,10 @@ class BayesianModel(object):
             for i in range(n_cols):
                 ax.plot(dm[:n_rows, i, j], c=colors[i], lw=2)
             ax.set_ylim(min_y - 0.05*min_y*np.sign(min_y), max_y + 0.05*max_y*np.sign(max_y))
-            try:
-                ax.set(xlabel=self.level_map[variable][j])
-            except: pass
+            if n_axes > 1:
+                try:
+                    ax.set(ylabel=list(self.level_map[split_by].keys())[j])
+                except: pass
         title = variable + ('' if split_by is None else ' split by ' + split_by)
         axes[0].set_title(title, fontsize=16)
         plt.show()
