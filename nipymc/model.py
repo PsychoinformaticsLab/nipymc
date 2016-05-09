@@ -290,6 +290,9 @@ class BayesianModel(object):
             if scale and scale != 'after':
                 dm[..., i] = standardize(dm[..., i])
 
+        if plot:
+            self.plot_design_matrix(dm, variable, split_by)
+
             # Convolve with HRF
             if variable not in ['subject', 'run', 'intercept'] and convolution is not 'none':
                 if convolution is None:
@@ -302,9 +305,6 @@ class BayesianModel(object):
 
             if scale == 'after':
                 dm[..., i] = standardize(dm[..., i])
-
-            if plot:
-                self.plot_design_matrix(dm[..., i])
 
         # remove the dummy 3rd dimension if it was added prior to scaling/convolution
         if dm.shape[-1] == 1:
@@ -487,14 +487,27 @@ class BayesianModel(object):
     def add_trend(self, level='run', order=1):
         pass
 
-    def plot_design_matrix(self, dm, panel=False):
+    def plot_design_matrix(self, dm, variable, split_by=None, panel=False):
         import matplotlib.pyplot as plt
         import seaborn as sns
-        n_cols = dm.shape[1]
-        plt.figure(figsize=(0.005*len(dm), 0.5*n_cols))
+        n_cols = min(dm.shape[1], 10)
+        n_axes = dm.shape[-1]
+        n_rows = self.dataset.n_vols * 3 * self.dataset.n_runs
+        fig, axes = plt.subplots(n_axes, 1, figsize=(20, 2 * n_axes))
+        if n_axes == 1:
+            axes = [axes]
         colors = sns.husl_palette(n_cols)
-        for i in range(n_cols):
-            plt.plot(dm[:, i], c=colors[i], lw=2)
+        for j in range(n_axes):
+            ax = axes[j]
+            min_y, max_y = dm[:n_rows, :, j].min(), dm[:n_rows, :, j].max()
+            for i in range(n_cols):
+                ax.plot(dm[:n_rows, i, j], c=colors[i], lw=2)
+            ax.set_ylim(min_y - 0.05*min_y*np.sign(min_y), max_y + 0.05*max_y*np.sign(max_y))
+            try:
+                ax.set(xlabel=self.level_map[variable][j])
+            except: pass
+        title = variable + ('' if split_by is None else ' split by ' + split_by)
+        axes[0].set_title(title, fontsize=16)
         plt.show()
 
 
