@@ -447,7 +447,7 @@ class BayesianModel(object):
         self._setup_y(y_data, ar, by_run)
 
     def run(self, samples=1000, find_map=True, verbose=True, step='nuts',
-            start=None, burn=0.5, **kwargs):
+            burn=0.5, **kwargs):
         ''' Run the model.
         Args:
             samples (int): Number of MCMC samples to generate
