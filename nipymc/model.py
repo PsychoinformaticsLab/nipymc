@@ -42,9 +42,12 @@ class BayesianModel(object):
         ''' Extract (and cache) design matrix for variable/categorical combo.
         '''
 
-        # if variable is a list, convert it to tuple before hashing
-        cache_key = hash((tuple(variable) if isinstance(variable, list) else variable,
-                         categorical))
+        # assign default labels (for variables passed in via split_by or orthogonalize)
+        if label is None:
+            label = '_'.join(listify(variable))
+
+        # hash labels (rather than variables)
+        cache_key = hash((label, categorical))
 
         if cache_key not in self.cache:
 
