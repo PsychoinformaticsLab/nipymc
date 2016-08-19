@@ -41,9 +41,12 @@ class BayesianModel(object):
         ''' Extract (and cache) design matrix for variable/categorical combo.
         '''
 
-        # if variable is a list, convert it to tuple before hashing
-        cache_key = hash((tuple(variable) if isinstance(variable, list) else variable,
-                         categorical))
+        # assign default labels (for variables passed in via split_by or orthogonalize)
+        if label is None:
+            label = '_'.join(listify(variable))
+
+        # hash labels (rather than variables)
+        cache_key = hash((label, categorical))
 
         if cache_key not in self.cache:
 
@@ -446,7 +449,7 @@ class BayesianModel(object):
         self._setup_y(y_data, ar, by_run)
 
     def run(self, samples=1000, find_map=True, verbose=True, step='nuts',
-            start=None, burn=0.5, **kwargs):
+            burn=0.5, **kwargs):
         ''' Run the model.
         Args:
             samples (int): Number of MCMC samples to generate
