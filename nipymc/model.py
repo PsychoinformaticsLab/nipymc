@@ -8,6 +8,9 @@ from six import string_types
 from collections import OrderedDict
 from sklearn.linear_model import LinearRegression
 from .utils import listify
+from theano import tensor as T
+from theano import shared
+import random
 
 
 class BayesianModel(object):
@@ -23,7 +26,6 @@ class BayesianModel(object):
         '''
         self.dataset = dataset
         if conv_kws is None:
-            # conv_kws = {'hz': 1./self.dataset.TR}
             conv_kws = {'tr': self.dataset.TR}
         self.convolution = get_convolution(convolution, **conv_kws)
         self.events = self.dataset.design.copy().reset_index()
@@ -72,11 +74,11 @@ class BayesianModel(object):
                 run_dms = []
                 events = self.events.copy()
                 sr = 100  # Sampling rate, in Hz
-                events['run_onset'] = (events['run_onset'] * sr).round()
-                events['duration'] = (events['duration'] * sr).round()
                 tr = self.dataset.TR
                 scale = np.ceil(tr * sr)
-                n_rows = self.dataset.n_vols * scale
+                events['run_onset'] = (events['run_onset'] * sr).round()
+                events['duration'] = (events['duration'] * sr).round()
+                n_rows = int(np.ceil(self.dataset.n_vols * scale))
 
                 if categorical:
                     variable_cols = events[variable]
@@ -288,26 +290,34 @@ class BayesianModel(object):
         if dm.ndim == 2:
             dm = dm[..., None]
 
+        if plot and plot != 'convolved':
+            self.plot_design_matrix(dm, variable, split_by)
+
         for i in range(dm.shape[-1]):
 
             if scale and scale != 'after':
                 dm[..., i] = standardize(dm[..., i])
 
-        if plot:
-            self.plot_design_matrix(dm, variable, split_by)
-
             # Convolve with HRF
-            if variable not in ['subject', 'run', 'intercept'] and convolution is not 'none':
+            if variable not in ['intercept'] and convolution is not 'none':
                 if convolution is None:
                     convolution = self.convolution
                 elif not hasattr(convolution, 'shape'):
                     convolution = get_convolution(convolution, conv_kws)
 
-                _convolved = self._convolve(dm[..., i], convolution)
-                dm[..., i] = _convolved  # np.squeeze(_convolved)
+                # Convolve each run separately
+                n_vols = self.dataset.n_vols
+                n_runs = int(len(dm)/n_vols)
+                for r in range(n_runs):
+                    start, end = r * n_vols, (r * n_vols) + n_vols
+                    _convolved = self._convolve(dm[start:end, :, i], convolution)
+                    dm[start:end, :, i] = _convolved  # np.squeeze(_convolved)
 
             if scale == 'after':
                 dm[..., i] = standardize(dm[..., i])
+
+        if plot and plot == 'convolved':
+            self.plot_design_matrix(dm, variable, split_by)
 
         # remove the dummy 3rd dimension if it was added prior to scaling/convolution
         if dm.shape[-1] == 1:
@@ -317,11 +327,10 @@ class BayesianModel(object):
 
             # Random effects
             if random:
-
                 # User can pass sigma specification in sigma_kws.
                 # If not provided, default to HalfCauchy with beta = 10.
                 if sigma_kws is None:
-                    sigma_kws = {'dist': 'HalfCauchy', 'beta': 10}
+                    sigma_kws = {'dist': 'HalfCauchy', 'beta': 1}
 
                 if split_by is None:
                     sigma = self._build_dist('sigma_' + label, **sigma_kws)
@@ -367,17 +376,12 @@ class BayesianModel(object):
                 if not withhold:
                     self.mu += pm.dot(dm, b)
 
-        # return dm
-
     def add_deterministic(self, label, expr):
         ''' Add a deterministic variable by evaling the passed expression. '''
-        from theano import tensor as T
         with self.model:
             self._build_dist(label, 'Deterministic', var=eval(expr))
 
     def _setup_y(self, y_data, ar, by_run):
-        from theano import shared
-        from theano import tensor as T
         ''' Sets up y to be a theano shared variable. '''
         if 'y' not in self.shared_params:
             self.shared_params['y'] = shared(y_data)
@@ -396,10 +400,8 @@ class BayesianModel(object):
 
                     # Model an AR term for each run or use just one for all runs
                     if by_run:
-                        smoother = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1, shape=n_runs)
-                        weights = np.outer(weights, np.eye(n_runs))
-                        weights = np.reshape(weights, (n_vols*n_runs, n_runs), order='F')
-                        _ar = pm.dot(weights, smoother) * y_shifted
+                        smoother = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1)
+                        _ar = T.repeat(smoother, n_vols) * y_shifted
                     else:
                         smoother = pm.Cauchy('AR(%d)' % i, alpha=0, beta=1)
                         weights = np.tile(weights, n_runs)
@@ -407,7 +409,7 @@ class BayesianModel(object):
 
                     self.mu += _ar
 
-                sigma = pm.HalfCauchy('sigma_y_obs', beta=10)
+                sigma = pm.HalfCauchy('sigma_y_obs', beta=2)
                 y_obs = pm.Normal('Y_obs', mu=self.mu, sd=sigma, 
                                   observed=self.shared_params['y'])
         else:
@@ -450,7 +452,7 @@ class BayesianModel(object):
         self._setup_y(y_data, ar, by_run)
 
     def run(self, samples=1000, find_map=True, verbose=True, step='nuts',
-            burn=0.5, **kwargs):
+            **kwargs):
         ''' Run the model.
         Args:
             samples (int): Number of MCMC samples to generate
@@ -479,8 +481,8 @@ class BayesianModel(object):
                 }[step.lower()](**kwargs)
 
             self.start = start
-            trace = pm.sample(
-                samples, start=start, step=step, progressbar=verbose, njobs=njobs, chain=chain)
+            trace = pm.sample(samples, start=start, step=step,
+                              progressbar=verbose, njobs=njobs, chain=chain)
             self.last_trace = trace  # for convenience
             return BayesianModelResults(trace)
 
@@ -491,16 +493,16 @@ class BayesianModel(object):
         pass
 
     def plot_design_matrix(self, dm, variable, split_by=None, panel=False):
-        print(self.level_map.keys())
         import matplotlib.pyplot as plt
         import seaborn as sns
-        n_cols = min(dm.shape[1], 10)
+        n_cols = min(dm.shape[1], 32)
         n_axes = dm.shape[2]
         n_rows = self.dataset.n_vols * 3 * self.dataset.n_runs
         fig, axes = plt.subplots(n_axes, 1, figsize=(20, 2 * n_axes))
         if n_axes == 1:
             axes = [axes]
         colors = sns.husl_palette(n_cols)
+        random.shuffle(colors)  # To improve discrimination at boundaries
         for j in range(n_axes):
             ax = axes[j]
             min_y, max_y = dm[:n_rows, :, j].min(), dm[:n_rows, :, j].max()
