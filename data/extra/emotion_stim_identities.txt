@@ -1,0 +1,20 @@
+MF3_top MF3_left
+MF3_right
+MF2_top MF2_right
+MF2_left MF1_top MF1_left
+MF1_right
+MA3_top MA3_left MA1_left
+MA3_right
+MA2_top MA2_right
+MA2_left
+MA1_top MA1_right
+FF3_top FF3_right
+FF3_left
+FF2_top FF2_left
+FF2_right FF1_top FF1_right
+FF1_left
+FA3_top FA3_left
+FA3_right
+FA2_top FA2_right
+FA2_left FA1_top FA1_left
+FA1_right
