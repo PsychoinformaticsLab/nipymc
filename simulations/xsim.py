@@ -214,7 +214,7 @@ def simulate(num_subs, num_stims, A_mean, B_mean, sub_A_sd, sub_B_sd, stim_A_sd,
                        df['y_t-1'],
                        df['y_t-2']], axis=1)
         beta = pd.stats.api.ols(y=df['y'], x=X, intercept=False).beta
-        return pd.Series(beta[1] - beta[0]).append(beta)
+        return pd.Series(beta[1] - beta[0]).append(beta)    
     sub_diffs = data.groupby('sub_num').apply(get_diff)
 
     # fit model with FIXED stim effects (LS-All model)
@@ -439,7 +439,7 @@ print('sim complete. saving results...')
 # write results to disk as pickle
 # w = write, r = read, a = append
 # b = binary
-output = open('/scratch/03754/jaw5629/xsim_appendix/xsim_p'+str(p)+'_q'+str(q)+'_s'+str(s)+'_dat'+str(instance)+'.pkl', 'wb')
+output = open('/scratch/03754/jaw5629/xsim_appendix_test/xsim_p'+str(p)+'_q'+str(q)+'_s'+str(s)+'_dat'+str(instance)+'.pkl', 'wb')
 pickle.dump(dat, output)
 output.close()
 

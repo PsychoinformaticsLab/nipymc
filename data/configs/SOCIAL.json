@@ -1,0 +1,15 @@
+{
+  "TR": 0.72,
+  "number_of_volumes_per_run": 274,
+  "number_of_runs": 2,
+  "filter_by_events": [
+    "mental",
+    "rnd"
+  ],
+  "eprime_columns": {
+    "Movie": "stimulus",
+    "Type": "condition",
+    "ResponseSlide.RESP": "response",
+    "MovieSlide.OnsetToOnsetTime": "movie_duration"
+  }
+}

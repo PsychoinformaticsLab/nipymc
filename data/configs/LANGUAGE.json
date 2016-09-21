@@ -1,0 +1,13 @@
+{
+  "TR": 0.72,
+  "number_of_volumes_per_run": 316,
+  "number_of_runs": 2,
+  "filter_by_events": [
+    "story",
+    "math"
+  ],
+  "eprime_columns": {
+    "stimulus": "stimulus",
+    "TaskName": "condition"
+  }
+}

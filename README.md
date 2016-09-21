@@ -35,6 +35,25 @@ NiPyMC requires working versions of numpy, pandas, matplotlib, patsy, pymc3, and
 
 #### Preparing the HCP data
 
+Need directories:
+/data/eprime
+/data/onsets
+/HCP/data
+
+`fslmeants -i [img_file] --label=[roi_file] -o [output_file]`
+
+Example, extracting 1 run (out of 2) for subject # 100307 in the HCP Emotion task.
+
+img_file = 
+`/HCP/data/100307/MNINonLinear/Results/tfMRI_EMOTION_LR/tfMRI_EMOTION_RL.nii.gz`
+
+roi_file =
+`/data/masks/whole_brain_cluster_labels_PCA=100_k=100.nii.gz`
+
+output_file =
+`/data/LANGUAGE_timeseries/100307_1.txt`
+
+
 #### Running the models
 
 ## Simulations
@@ -45,7 +64,7 @@ The code and results for this simulation are fully contained in [this notebook](
 
 #### Test statistic inflation
 
-This is a very large simulation that we ran on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computer Center](https://www.tacc.utexas.edu/home). The [`/simulations` directory](https://github.com/tyarkoni/nipymc/tree/master/simulations) contains the scripts that we deployed.
+This is a very large simulation that we ran on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home). The [`/simulations` directory](https://github.com/tyarkoni/nipymc/tree/master/simulations) contains the scripts that we deployed.
 
 ## Literature survey
 

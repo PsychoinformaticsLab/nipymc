@@ -1,0 +1,17 @@
+{
+  "TR": 0.72,
+  "number_of_volumes_per_run": 405,
+  "number_of_runs": 2,
+  "filter_by_events": [
+    "all_bk_cor",
+    "all_bk_err"
+  ],
+  "eprime_columns": {
+    "Stimulus[Block]": "stimulus",
+    "TargetType": "trial_type",
+    "StimType": "stimulus_category",
+    "BlockType": "nback_condition",
+    "Stim.ACC": "acc",
+    "Stim.RT": "rt"
+  }
+}

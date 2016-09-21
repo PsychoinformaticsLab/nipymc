@@ -1,0 +1,20 @@
+{
+  "TR": 0.72,
+  "number_of_volumes_per_run": 176,
+  "number_of_runs": 2,
+  "filter_by_events": [
+    "fear",
+    "neut"
+  ],
+  "eprime_columns": {
+    "Top": "top_stim",
+    "Left": "left_stim",
+    "Right": "right_stim",
+    "StimSlide.RESP": "response",
+    "StimSlide.ACC": "accuracy",
+    "StimSlide.RT": "rt",
+    "StimSlide.OnsetTime": "onset",
+    "SyncSlide.OnsetTime": "sync"
+  },
+  "scanner_sync": "sync"
+}
