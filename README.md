@@ -21,7 +21,7 @@ This repository contains the supplemental material for Westfall, Nichols, & Yark
 Reproducing the analyses in the paper involves the following steps, which we will walk through in detail: 
 
 1. **Installing the NiPyMC Python package from this Github page.** We wrote NiPyMC to serve as a high-level interface for fitting Bayesian mixed models to fMRI data using [PyMC3](https://pymc-devs.github.io/pymc3/index.html) in order to simplify the data analysis for our paper. We analyzed 5 of the 6 datasets presented in the paper using NiPyMC.
-2. **Downloading and preparing the Human Connectome Project (HCP) datasets.** The data for the NeuroVault IAPS study and the OpenfMRI emotion regulation study are posted in this Github repository. The other four datasets come from the HCP. These datasets are far too large to post here (and this would also be contrary to the HCP's [data use terms](http://www.humanconnectome.org/data/data-use-terms/)), so you will need to download the HCP data separately and use [FSL](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) to extract the data from the 100 regions of interest (ROIs) that we use in our analyses.
+2. **Downloading and preparing the Human Connectome Project (HCP) datasets.** The data for the NeuroVault IAPS study and the OpenfMRI emotion regulation study are posted here in the [`/data` directory](https://github.com/tyarkoni/nipymc/tree/master/data). The other four datasets come from the HCP. These datasets are far too large to post here (and this would also be contrary to the HCP's [data use terms](http://www.humanconnectome.org/data/data-use-terms/)), so you will need to download the HCP data separately and use [FSL](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) to extract the data from the 100 regions of interest (ROIs) that we use in our analyses.
 3. **Running the models.** This part is mostly straightforward, but fitting the full set of models to all of the datasets is extremely computationally demanding. We ran our analyses on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home), and if you want to re-estimate all the models yourself, you will want to use some computing cluster. For convenience we have posted compressed summaries of all of the fitted models from our analyses (the Python dictionaries returned by [`BayesianModelResults.summarize()`](https://github.com/tyarkoni/nipymc/blob/master/nipymc/model.py)) in the [`/results`](https://github.com/tyarkoni/nipymc/tree/master/results) directory, which you can use, for example, to reproduce the figures and explore the parameter estimates for individual models.
 
 #### Installing the NiPyMC Python package
@@ -52,7 +52,7 @@ Once you have the data, things will work smoothest if you put it in the followin
 
 Now you can use [FSL](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) to extract the time series for the 100 ROIs we used in our analyses and save this extracted ROI data to the `/data` directory. You can do this from the command line using the `fslmeants` command, like so:
 ```
-fslmeants -i [img_file] --label=[roi_file] -o [output_file]`
+fslmeants -i [img_file] --label=[roi_file] -o [output_file]
 ```
 Replace `[img-file]` with the raw time series data file from which you want to extract the ROI data (without the brackets), `[roi_file]` with the file containing info about how the ROIs are defined, and `[out_file]` with the location and filename where you want to save the resulting ROI time series data.
 
