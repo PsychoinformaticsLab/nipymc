@@ -21,8 +21,8 @@ This repository contains the supplemental material for Westfall, Nichols, & Yark
 Reproducing the analyses in the paper involves the following steps, which we will walk through in detail: 
 
 1. **Installing the NiPyMC Python package from this Github page.** We wrote NiPyMC to serve as a high-level interface for fitting Bayesian mixed models to fMRI data using [PyMC3](https://pymc-devs.github.io/pymc3/index.html) in order to simplify the data analysis for our paper. We analyzed 5 of the 6 datasets presented in the paper using NiPyMC.
-2. **Downloading and preparing the Human Connectome Project (HCP) datasets.** The data for the NeuroVault IAPS study and the OpenfMRI emotion regulation study are posted here in the [`/data` directory](https://github.com/tyarkoni/nipymc/tree/master/data). The other four datasets come from the HCP. These datasets are far too large to post here (and this would also be contrary to the HCP's [data use terms](http://www.humanconnectome.org/data/data-use-terms/)), so you will need to download the HCP data separately and use [FSL](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) to extract the data from the 100 regions of interest (ROIs) that we use in our analyses.
-3. **Running the models.** This part is mostly straightforward, but fitting the full set of models to all of the datasets is extremely computationally demanding. We ran our analyses on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home), and if you want to re-estimate all the models yourself, you will want to use some computing cluster. For convenience we have posted compressed summaries of all of the fitted models from our analyses (the Python dictionaries returned by [`BayesianModelResults.summarize()`](https://github.com/tyarkoni/nipymc/blob/master/nipymc/model.py)) in the [`/results`](https://github.com/tyarkoni/nipymc/tree/master/results) directory, which you can use, for example, to reproduce the figures and explore the parameter estimates for individual models.
+2. **Downloading and preparing the Human Connectome Project (HCP) datasets.** The data for the NeuroVault IAPS study and the OpenfMRI emotion regulation study are posted here in the [`/data` directory](data). The other four datasets come from the HCP. These datasets are far too large to post here (and this would also be contrary to the HCP's [data use terms](http://www.humanconnectome.org/data/data-use-terms/)), so you will need to download the HCP data separately and use [FSL](http://fsl.fmrib.ox.ac.uk/fsl/fslwiki/) to extract the data from the 100 regions of interest (ROIs) that we use in our analyses.
+3. **Running the models.** This part is mostly straightforward, but fitting the full set of models to all of the datasets is extremely computationally demanding. We ran our analyses on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home), and if you want to re-estimate all the models yourself, you will want to use some computing cluster. For convenience we have posted compressed summaries of all of the fitted models from our analyses (the Python dictionaries returned by [`BayesianModelResults.summarize()`](nipymc/model.py)) in the [`/results`](results) directory, which you can use, for example, to reproduce the figures and explore the parameter estimates for individual models.
 
 #### Installing the NiPyMC Python package
 
@@ -30,7 +30,7 @@ NiPyMC requires a working Python interpreter (either 2.7+ or 3+). We recommend i
 
 Assuming a standard Python environment is installed on your machine (including pip), NiPyMC itself can be installed in one line using pip:
 
-    pip install git+https://github.com/tyarkoni/nipymc
+    pip install git+https://github.com/PsychoinformaticsLab/nipymc
 
 You'll also need to install PyMC3. You can install PyMC3 from the command line as follows (for details, see the full [installation instructions](pip install git+https://github.com/pymc-devs/pymc3) on the PyMC3 repository:
 
@@ -65,27 +65,27 @@ For example, to extract the 100 ROI time series for run #1 (out of 2 runs total)
 `/data/masks/whole_brain_cluster_labels_PCA=100_k=100.nii.gz`
 
 [output_file] =
-`/data/LANGUAGE_timeseries/100307_1.txt`
+`/data/EMOTION_timeseries/100307_1.txt`
 
 The most efficient thing to do is to write a shell script or Python script to do this for all tasks and subjects of interest.
 
 #### Running the models
 
-With the ROI time series for the HCP datasets all neatly extracted, estimating the models is simply a matter of running the scripts in the [`/analyses` directory](https://github.com/tyarkoni/nipymc/tree/master/analyses). For each task and model, running the shell script will call the associated Python script 100 times, which fits the model to each of the 100 ROIs. Because of the computational demands, fitting the models for all 100 ROIs pretty much requires a computing cluster of some kind. For the analyses in this paper, fitting a single model takes anywhere from a few minutes to several hours, depending on the specific dataset and model.
+With the ROI time series for the HCP datasets all neatly extracted, estimating the models is simply a matter of running the scripts in the [`/analyses` directory](analyses). For each task and model, running the shell script will call the associated Python script 100 times, which fits the model to each of the 100 ROIs. Because of the computational demands, fitting the models for all 100 ROIs pretty much requires a computing cluster of some kind. For the analyses in this paper, fitting a single model takes anywhere from a few minutes to several hours, depending on the specific dataset and model.
 
 All of the shell and python scripts in the `/analyses` directory are posted exactly as we ran them on [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar). However, you will probably want to change the directories that are referenced in the shell and Python scripts before re-running yourself.
 
-As we wrote above, for convenience we have posted compressed summaries of all of the fitted models from our analyses (the Python dictionaries returned by [`BayesianModelResults.summarize()`](https://github.com/tyarkoni/nipymc/blob/master/nipymc/model.py)) in the [`/results`](https://github.com/tyarkoni/nipymc/tree/master/results) directory, which you can use, for example, to reproduce the figures and explore the parameter estimates for individual models.
+As we wrote above, for convenience we have posted compressed summaries of all of the fitted models from our analyses (the Python dictionaries returned by [`BayesianModelResults.summarize()`](nipymc/model.py)) in the [`/results`](results) directory, which you can use, for example, to reproduce the figures and explore the parameter estimates for individual models.
 
 ## Simulations
 
 #### SPM false positive rate
 
-The code and results for this simulation are fully contained in [this notebook](https://github.com/tyarkoni/nipymc/tree/master/simulations/xsim_false_positive.ipynb).
+The code and results for this simulation are fully contained in [this notebook](simulations/xsim_false_positive.ipynb).
 
 #### Test statistic inflation
 
-This is a very large simulation that we ran on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home). The [`/simulations` directory](https://github.com/tyarkoni/nipymc/tree/master/simulations) contains the scripts that we deployed.
+This is a very large simulation that we ran on the [Lonestar 5](https://www.tacc.utexas.edu/systems/lonestar) supercomputer at the [Texas Advanced Computing Center](https://www.tacc.utexas.edu/home). The [`/simulations` directory](simulations) contains the scripts that we deployed.
 
 ## Literature survey
 
@@ -93,4 +93,4 @@ A Google Docs spreadsheet containing the study-level results of our literature s
 
 ## Figures
 
-Code to reproduce all the figures in our paper can be found [here](https://github.com/tyarkoni/nipymc/tree/master/figures). Code to reproduce the figures from the Appendix can be found [here](https://github.com/tyarkoni/nipymc/tree/master/simulations/xsim_figures.R).
+Code to reproduce all the figures in our paper can be found [here](figures). Code to reproduce the figures from the Appendix can be found [here](simulations/xsim_figures.R).
