@@ -1,6 +1,6 @@
 NiPyMC
 ------
-This repository contains the supplemental material for Westfall, Nichols, & Yarkoni (2016).
+This repository contains the supplemental material for Westfall, Nichols, & Yarkoni (2016), "[Fixing the stimulus-as-fixed-effect fallacy in task fMRI](http://biorxiv.org/content/early/2016/09/25/077131)."
 
 ## Table of Contents
 - [Reproducing the analyses](#reproducing-the-analyses)
