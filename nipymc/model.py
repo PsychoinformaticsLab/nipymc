@@ -106,7 +106,7 @@ class BayesianModel(object):
 
                         if categorical:
                             for var in listify(variable):
-                                dm[start:end, row[variable]] = 1
+                                dm[start:end, np.array(row[variable], dtype=int)] = 1
                         else:
                             if isinstance(variable, (tuple, list)):
                                 raise ValueError("Adding a list of terms is only "
@@ -114,7 +114,7 @@ class BayesianModel(object):
                                         "(e.g., random factors).")
                             dm[start:end, 0] = row[variable]
 
-                    dm = dm.reshape(-1, scale, n_cols).mean(axis=1)
+                    dm = dm.reshape(-1, scale.astype(int), n_cols).mean(axis=1)
                     run_dms.append(dm[:self.dataset.n_vols])
 
                 dm = np.concatenate(run_dms)

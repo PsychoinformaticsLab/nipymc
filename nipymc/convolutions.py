@@ -43,6 +43,6 @@ def spm_hrf(tr, p=[6, 16, 1, 1, 6, 0, 32]):
     hrf = stats.gamma.pdf(u, p[0]/p[2], scale=1.0/(dt/p[2])) - \
         stats.gamma.pdf(u, p[1]/p[3], scale=1.0/(dt/p[3]))/p[4]
     good_pts = np.array(range(np.int(p[6]/tr)))*fMRI_T
-    hrf = hrf[list(good_pts)]
+    hrf = hrf[good_pts.astype(int)]
     hrf = hrf/np.sum(hrf)
     return hrf
