@@ -36,7 +36,7 @@ Assuming a standard Python environment is installed on your machine (including p
 
 You'll also need to install PyMC3. You can install PyMC3 from the command line as follows (for details, see the full [installation instructions](pip install git+https://github.com/pymc-devs/pymc3) on the PyMC3 repository:
 
-    pip install git+https://github.com/pymc-devs/pymc3
+    pip install git+https://github.com/pymc-devs/pymc@v3
 
 Once both packages are installed, you should be ready to fit models with NiPyMC.
 
